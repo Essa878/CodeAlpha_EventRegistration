@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Registration</title>
+  <style>
+    :root { color-scheme: light dark; --brand: #7c3aed; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; line-height: 1.5; }
+    h1 { margin: 0; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .muted { color: #888; }
+    .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    input, select, textarea { padding: .55rem .7rem; border: 1px solid #ccc; border-radius: 8px; font: inherit; }
+    input, select { min-width: 0; }
+    button { padding: .55rem 1rem; border: 0; border-radius: 8px; background: var(--brand); color: #fff; cursor: pointer; font: inherit; }
+    button.secondary { background: #6b7280; }
+    button.danger { background: #dc2626; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin: .75rem 0; }
+    .card h3 { margin: 0 0 .25rem; }
+    .pill { display: inline-block; font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; background: #ede9fe; color: #5b21b6; }
+    .pill.full { background: #fee2e2; color: #991b1b; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+    form.stack { display: grid; gap: .5rem; }
+    .tag { font-size: .8rem; color: #888; }
+    .hide { display: none !important; }
+    .error { color: #dc2626; font-size: .9rem; }
+    #toast { position: fixed; bottom: 1rem; right: 1rem; background: #111; color: #fff; padding: .6rem 1rem; border-radius: 8px; opacity: 0; transition: opacity .2s; }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>EventHub</h1>
+      <div class="muted" id="whoami">Not signed in</div>
+    </div>
+    <div class="row" id="auth-actions"></div>
+  </header>
+
+  <section id="auth-panel" class="card">
+    <h3>Sign in / Create account</h3>
+    <div class="grid">
+      <form class="stack" id="login-form">
+        <strong>Login</strong>
+        <input name="email" type="email" placeholder="Email" required />
+        <input name="password" type="password" placeholder="Password" required />
+        <button type="submit">Login</button>
+      </form>
+      <form class="stack" id="register-form">
+        <strong>Register</strong>
+        <input name="name" placeholder="Name" required />
+        <input name="email" type="email" placeholder="Email" required />
+        <input name="password" type="password" placeholder="Password (min 6)" required />
+        <select name="role">
+          <option value="attendee">Attendee</option>
+          <option value="organizer">Organizer</option>
+        </select>
+        <button type="submit">Create account</button>
+      </form>
+    </div>
+    <p class="error" id="auth-error"></p>
+  </section>
+
+  <section id="organizer-panel" class="card hide">
+    <h3>Create event <span class="tag">(organizers only)</span></h3>
+    <form class="stack" id="event-form">
+      <input name="title" placeholder="Event title" required />
+      <div class="grid">
+        <input name="location" placeholder="Location" />
+        <input name="startsAt" type="datetime-local" required />
+      </div>
+      <div class="grid">
+        <input name="capacity" type="number" min="1" value="50" placeholder="Capacity" />
+      </div>
+      <textarea name="description" placeholder="Description" rows="2"></textarea>
+      <button type="submit">Create event</button>
+    </form>
+  </section>
+
+  <section>
+    <div class="row" style="justify-content: space-between;">
+      <h2>Events</h2>
+      <div class="row">
+        <input id="search" placeholder="Search title or location" />
+        <button class="secondary" id="refresh">Refresh</button>
+      </div>
+    </div>
+    <div id="events"></div>
+  </section>
+
+  <section id="my-registrations" class="hide">
+    <h2>My registrations</h2>
+    <div id="registrations"></div>
+  </section>
+
+  <div id="toast"></div>
+
+  <script>
+    const state = { token: localStorage.getItem('token') || null, user: null };
+    const $ = (sel) => document.querySelector(sel);
+    const api = async (path, opts = {}) => {
+      const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+      if (state.token) headers.Authorization = `Bearer ${state.token}`;
+      const res = await fetch(path, { ...opts, headers });
+      const data = res.status === 204 ? null : await res.json().catch(() => null);
+      if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
+      return data;
+    };
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function toast(msg) {
+      const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function renderAuth() {
+      const signedIn = !!state.token && !!state.user;
+      $('#auth-panel').classList.toggle('hide', signedIn);
+      $('#my-registrations').classList.toggle('hide', !signedIn || state.user.role === 'organizer');
+      $('#organizer-panel').classList.toggle('hide', !signedIn || state.user.role !== 'organizer');
+      $('#whoami').textContent = signedIn ? `${state.user.name} (${state.user.role})` : 'Not signed in';
+      $('#auth-actions').innerHTML = signedIn ? '<button class="secondary" id="logout">Log out</button>' : '';
+      if (signedIn) $('#logout').onclick = logout;
+    }
+
+    async function logout() { state.token = null; state.user = null; localStorage.removeItem('token'); renderAuth(); await loadEvents(); }
+
+    async function loadMe() {
+      if (!state.token) return;
+      try { state.user = (await api('/api/auth/me')).user; }
+      catch { state.token = null; localStorage.removeItem('token'); }
+    }
+
+    async function loadEvents() {
+      const q = $('#search').value.trim();
+      const rows = await api(`/api/events${q ? `?search=${encodeURIComponent(q)}` : ''}`);
+      const box = $('#events');
+      if (!rows.length) { box.innerHTML = '<p class="muted">No events yet.</p>'; return; }
+      box.innerHTML = rows.map((e) => `
+        <div class="card">
+          <div class="row" style="justify-content: space-between;">
+            <h3>${esc(e.title)}</h3>
+            <span class="pill ${e.spotsLeft === 0 ? 'full' : ''}">${e.spotsLeft === 0 ? 'Full' : e.spotsLeft + ' spots left'}</span>
+          </div>
+          <div class="tag">${esc(e.location || 'No location')} · ${esc(new Date(e.startsAt).toLocaleString())} · by ${esc(e.organizerName)}</div>
+          <p>${esc(e.description || '')}</p>
+          <div class="row">
+            <span class="tag">${e.registeredCount}/${e.capacity} registered</span>
+            ${state.token && state.user && state.user.role === 'attendee'
+              ? `<button data-register="${e.id}" ${e.spotsLeft === 0 ? 'disabled' : ''}>Register</button>` : ''}
+            ${state.token && state.user && (state.user.role === 'organizer' && e.organizerId === state.user.id)
+              ? `<button class="danger" data-delete="${e.id}">Delete</button>` : ''}
+          </div>
+        </div>`).join('');
+
+      box.querySelectorAll('[data-register]').forEach((b) => b.onclick = async () => {
+        try { await api(`/api/events/${b.dataset.register}/register`, { method: 'POST' }); toast('Registered!'); await Promise.all([loadEvents(), loadRegistrations()]); }
+        catch (e) { toast(e.message); }
+      });
+      box.querySelectorAll('[data-delete]').forEach((b) => b.onclick = async () => {
+        if (!confirm('Delete this event?')) return;
+        try { await api(`/api/events/${b.dataset.delete}`, { method: 'DELETE' }); toast('Deleted'); await loadEvents(); }
+        catch (e) { toast(e.message); }
+      });
+    }
+
+    async function loadRegistrations() {
+      if (!state.token || !state.user || state.user.role === 'organizer') return;
+      const rows = await api('/api/registrations/me');
+      const box = $('#registrations');
+      if (!rows.length) { box.innerHTML = '<p class="muted">No registrations yet.</p>'; return; }
+      box.innerHTML = rows.map((r) => `
+        <div class="card">
+          <div class="row" style="justify-content: space-between;">
+            <h3>${esc(r.event.title)} <span class="pill">${esc(r.status)}</span></h3>
+            ${r.status === 'registered' ? `<button class="danger" data-cancel="${r.id}">Cancel</button>` : ''}
+          </div>
+          <div class="tag">${esc(r.event.location || 'No location')} · ${esc(new Date(r.event.startsAt).toLocaleString())}</div>
+        </div>`).join('');
+      box.querySelectorAll('[data-cancel]').forEach((b) => b.onclick = async () => {
+        try { await api(`/api/registrations/${b.dataset.cancel}/cancel`, { method: 'POST' }); toast('Cancelled'); await Promise.all([loadEvents(), loadRegistrations()]); }
+        catch (e) { toast(e.message); }
+      });
+    }
+
+    $('#login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
+        state.token = data.token; state.user = data.user; localStorage.setItem('token', data.token);
+        $('#auth-error').textContent = ''; renderAuth(); await afterAuth();
+      } catch (err) { $('#auth-error').textContent = err.message; }
+    };
+
+    $('#register-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const data = await api('/api/auth/register', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
+        state.token = data.token; state.user = data.user; localStorage.setItem('token', data.token);
+        $('#auth-error').textContent = ''; renderAuth(); await afterAuth();
+      } catch (err) { $('#auth-error').textContent = err.message; }
+    };
+
+    $('#event-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd);
+      body.capacity = Number(body.capacity);
+      try { await api('/api/events', { method: 'POST', body: JSON.stringify(body) }); e.target.reset(); toast('Event created'); await loadEvents(); }
+      catch (err) { toast(err.message); }
+    };
+
+    $('#refresh').onclick = loadEvents;
+    $('#search').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadEvents, 300); };
+
+    async function afterAuth() { await Promise.all([loadEvents(), loadRegistrations()]); }
+
+    (async function init() {
+      await loadMe();
+      renderAuth();
+      await Promise.all([loadEvents(), loadRegistrations()]);
+    })();
+  </script>
+</body>
+</html>
