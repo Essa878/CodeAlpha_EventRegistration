@@ -4,6 +4,13 @@ import { authenticate } from '../auth.js';
 
 const router = Router();
 
+const MY_QUERY = `
+  SELECT r.*, e.title, e.location, e.category, e.starts_at, e.capacity, u.name AS organizer_name
+  FROM registrations r
+  JOIN events e ON e.id = r.event_id
+  JOIN users u ON u.id = e.organizer_id
+`;
+
 function registrationView(row) {
   return {
     id: row.id,
@@ -13,15 +20,13 @@ function registrationView(row) {
       id: row.event_id,
       title: row.title,
       location: row.location,
+      category: row.category,
       startsAt: row.starts_at,
+      organizerName: row.organizer_name,
+      isPast: new Date(row.starts_at).getTime() < Date.now(),
     },
   };
 }
-
-const MY_QUERY = `
-  SELECT r.*, e.title, e.location, e.starts_at
-  FROM registrations r JOIN events e ON e.id = r.event_id
-`;
 
 router.get('/registrations/me', authenticate, (req, res) => {
   const rows = getDb()
@@ -41,21 +46,8 @@ router.post('/events/:id/register', authenticate, (req, res, next) => {
       .get(event.id, req.user.id);
 
     if (existing && existing.status === 'registered') {
-      return res.status(200).json({ ...registrationView({ ...existing, title: event.title, location: event.location, starts_at: event.starts_at }), alreadyRegistered: true });
-    }
-
-    if (!existing) {
-      const count = db
-        .prepare("SELECT COUNT(*) AS c FROM registrations WHERE event_id = ? AND status = 'registered'")
-        .get(event.id).c;
-      if (count >= event.capacity) {
-        return res.status(409).json({ error: 'Event is full' });
-      }
-      const info = db
-        .prepare('INSERT INTO registrations (event_id, user_id, status) VALUES (?, ?, ?)')
-        .run(event.id, req.user.id, 'registered');
-      const row = db.prepare(`${MY_QUERY} WHERE r.id = ?`).get(info.lastInsertRowid);
-      return res.status(201).json(registrationView(row));
+      const row = db.prepare(`${MY_QUERY} WHERE r.id = ?`).get(existing.id);
+      return res.status(200).json({ ...registrationView(row), alreadyRegistered: true });
     }
 
     const count = db
@@ -64,9 +56,18 @@ router.post('/events/:id/register', authenticate, (req, res, next) => {
     if (count >= event.capacity) {
       return res.status(409).json({ error: 'Event is full' });
     }
-    db.prepare("UPDATE registrations SET status = 'registered' WHERE id = ?").run(existing.id);
-    const row = db.prepare(`${MY_QUERY} WHERE r.id = ?`).get(existing.id);
-    return res.status(200).json(registrationView(row));
+
+    let regId;
+    if (!existing) {
+      regId = db
+        .prepare('INSERT INTO registrations (event_id, user_id, status) VALUES (?, ?, ?)')
+        .run(event.id, req.user.id, 'registered').lastInsertRowid;
+    } else {
+      db.prepare("UPDATE registrations SET status = 'registered' WHERE id = ?").run(existing.id);
+      regId = existing.id;
+    }
+    const row = db.prepare(`${MY_QUERY} WHERE r.id = ?`).get(regId);
+    return res.status(existing ? 200 : 201).json(registrationView(row));
   } catch (err) {
     return next(err);
   }

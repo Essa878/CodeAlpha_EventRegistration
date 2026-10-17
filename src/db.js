@@ -29,6 +29,7 @@ export function initDb() {
       title        TEXT NOT NULL,
       description  TEXT NOT NULL DEFAULT '',
       location     TEXT NOT NULL DEFAULT '',
+      category     TEXT NOT NULL DEFAULT '',
       starts_at    TEXT NOT NULL,
       capacity     INTEGER NOT NULL DEFAULT 100 CHECK (capacity > 0),
       created_at   TEXT NOT NULL DEFAULT (datetime('now'))
@@ -43,6 +44,10 @@ export function initDb() {
       UNIQUE (event_id, user_id)
     );
   `);
+  const eventCols = db.prepare('PRAGMA table_info(events)').all().map((c) => c.name);
+  if (!eventCols.includes('category')) {
+    db.exec("ALTER TABLE events ADD COLUMN category TEXT NOT NULL DEFAULT ''");
+  }
   return db;
 }
 

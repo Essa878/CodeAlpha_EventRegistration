@@ -3,228 +3,660 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Event Registration</title>
+  <title>EventHub — Discover &amp; Register for Events</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>" />
   <style>
-    :root { color-scheme: light dark; --brand: #7c3aed; }
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-2: #f1f2f8;
+      --border: #e4e6f0;
+      --text: #14162b;
+      --muted: #6b7186;
+      --primary: #6366f1;
+      --primary-600: #4f46e5;
+      --primary-soft: #eef0ff;
+      --accent: #8b5cf6;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --shadow: 0 1px 2px rgba(20,22,43,.04), 0 8px 24px rgba(20,22,43,.06);
+      --shadow-lg: 0 12px 40px rgba(20,22,43,.16);
+    }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; line-height: 1.5; }
-    h1 { margin: 0; }
-    header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
-    .muted { color: #888; }
-    .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
-    input, select, textarea { padding: .55rem .7rem; border: 1px solid #ccc; border-radius: 8px; font: inherit; }
-    input, select { min-width: 0; }
-    button { padding: .55rem 1rem; border: 0; border-radius: 8px; background: var(--brand); color: #fff; cursor: pointer; font: inherit; }
-    button.secondary { background: #6b7280; }
-    button.danger { background: #dc2626; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 1rem; margin: .75rem 0; }
-    .card h3 { margin: 0 0 .25rem; }
-    .pill { display: inline-block; font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; background: #ede9fe; color: #5b21b6; }
-    .pill.full { background: #fee2e2; color: #991b1b; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
-    form.stack { display: grid; gap: .5rem; }
-    .tag { font-size: .8rem; color: #888; }
+    html, body { margin: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--primary-600); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    h1, h2, h3, h4 { margin: 0; line-height: 1.25; }
+    .muted { color: var(--muted); }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+    /* App bar */
+    .appbar {
+      position: sticky; top: 0; z-index: 30;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .appbar-inner { display: flex; align-items: center; gap: 16px; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; letter-spacing: -.02em; }
+    .brand .logo {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: grid; place-items: center; color: #fff; font-size: 1rem;
+      box-shadow: 0 6px 16px rgba(99,102,241,.4);
+    }
+    .nav { display: flex; gap: 4px; margin-left: 12px; }
+    .nav button {
+      border: 0; background: transparent; color: var(--muted);
+      padding: 8px 14px; border-radius: 999px; cursor: pointer;
+      font: inherit; font-weight: 600;
+    }
+    .nav button:hover { background: var(--surface-2); color: var(--text); }
+    .nav button.active { background: var(--primary-soft); color: var(--primary-600); }
+    .spacer { flex: 1; }
+    .user-chip { display: flex; align-items: center; gap: 10px; }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      display: grid; place-items: center; color: #fff; font-weight: 700; font-size: .85rem;
+    }
+
+    /* Buttons */
+    .btn {
+      border: 1px solid transparent; border-radius: var(--radius-sm);
+      padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 7px; justify-content: center;
+      transition: transform .06s ease, background .15s ease, box-shadow .15s ease;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.primary { background: linear-gradient(135deg, var(--primary), var(--primary-600)); color: #fff; box-shadow: 0 6px 16px rgba(99,102,241,.35); }
+    .btn.primary:hover:not(:disabled) { box-shadow: 0 8px 22px rgba(99,102,241,.45); }
+    .btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text); }
+    .btn.ghost:hover:not(:disabled) { background: var(--surface-2); }
+    .btn.soft { background: var(--primary-soft); color: var(--primary-600); }
+    .btn.soft:hover:not(:disabled) { background: #e3e6ff; }
+    .btn.danger { background: #fff; border-color: #fecaca; color: var(--danger); }
+    .btn.danger:hover:not(:disabled) { background: #fef2f2; }
+    .btn.sm { padding: 6px 12px; font-size: .85rem; }
+    .btn.block { width: 100%; }
+
+    /* Inputs */
+    .field { display: grid; gap: 6px; }
+    .field > label { font-size: .82rem; font-weight: 600; color: var(--muted); }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; font: inherit; color: var(--text);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); outline: none; transition: border .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+    textarea { resize: vertical; min-height: 84px; }
+
+    /* Hero */
+    .hero {
+      margin: 26px 0 22px; padding: 30px 28px; border-radius: 20px; color: #fff;
+      background: radial-gradient(1200px 400px at 0% 0%, #7c3aed 0%, transparent 55%), linear-gradient(135deg, #4f46e5, #7c3aed 60%, #9333ea);
+      box-shadow: var(--shadow-lg); position: relative; overflow: hidden;
+    }
+    .hero h2 { font-size: clamp(1.4rem, 3vw, 2rem); letter-spacing: -.02em; }
+    .hero p { margin: 8px 0 0; opacity: .92; max-width: 560px; }
+    .hero .stats { display: flex; gap: 26px; margin-top: 20px; flex-wrap: wrap; }
+    .hero .stat b { display: block; font-size: 1.5rem; }
+    .hero .stat span { font-size: .8rem; opacity: .85; }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+    .toolbar .grow { flex: 1; min-width: 200px; }
+    .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+    .seg button { border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 600; color: var(--muted); }
+    .seg button.active { background: var(--primary-soft); color: var(--primary-600); }
+
+    /* Cards grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px;
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .card.clickable { cursor: pointer; }
+    .card.clickable:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+    .card-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .card h3 { font-size: 1.05rem; letter-spacing: -.01em; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--muted); font-size: .86rem; }
+    .meta span { display: inline-flex; align-items: center; gap: 6px; }
+    .desc { color: var(--muted); font-size: .9rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: .74rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); text-transform: capitalize; }
+    .badge.purple { background: var(--primary-soft); color: var(--primary-600); }
+    .badge.green { background: #e7f8f1; color: #0f766e; }
+    .badge.amber { background: #fef3c7; color: #b45309; }
+    .badge.red { background: #fef2f2; color: #b91c1c; }
+    .badge.gray { background: var(--surface-2); color: var(--muted); }
+
+    /* Capacity bar */
+    .cap { height: 7px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .cap > i { display: block; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 999px; }
+    .cap.full > i { background: linear-gradient(90deg, #ef4444, #f97316); }
+
+    /* Stat cards */
+    .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .stat-card .k { color: var(--muted); font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-card .v { font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; }
+
+    .empty { text-align: center; padding: 54px 20px; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); }
+    .empty .ic { font-size: 2.4rem; }
+    .loading { display: grid; place-items: center; padding: 60px; color: var(--muted); }
+    .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Modal */
+    .overlay { position: fixed; inset: 0; background: rgba(15,17,34,.5); backdrop-filter: blur(3px); display: grid; place-items: center; padding: 20px; z-index: 60; animation: fade .15s ease; }
+    @keyframes fade { from { opacity: 0; } }
+    .modal { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow-lg); width: 100%; max-width: 520px; max-height: 90vh; overflow: auto; animation: pop .18s cubic-bezier(.2,.8,.2,1); }
+    @keyframes pop { from { transform: translateY(12px) scale(.98); opacity: 0; } }
+    .modal.wide { max-width: 660px; }
+    .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 20px 22px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); border-radius: 18px 18px 0 0; }
+    .modal-head h3 { font-size: 1.2rem; letter-spacing: -.02em; }
+    .modal-body { padding: 20px 22px; display: grid; gap: 16px; }
+    .modal-foot { padding: 16px 22px 20px; display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); }
+    .x { border: 0; background: var(--surface-2); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; color: var(--muted); line-height: 1; }
+    .x:hover { background: #e9eaf2; }
+
+    .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tabs button { border: 0; background: transparent; padding: 10px 14px; cursor: pointer; font: inherit; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tabs button.active { color: var(--primary-600); border-bottom-color: var(--primary); }
+
+    .switch { text-align: center; font-size: .9rem; color: var(--muted); }
+    .switch a { font-weight: 600; cursor: pointer; }
+
+    .list-row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: center; }
+    .list-row:last-child { border-bottom: 0; }
+
+    .toast-wrap { position: fixed; bottom: 20px; right: 20px; display: grid; gap: 10px; z-index: 90; }
+    .toast { background: #14162b; color: #fff; padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow-lg); font-size: .9rem; animation: pop .18s ease; display: flex; gap: 10px; align-items: center; max-width: 340px; }
+    .toast.ok { background: #065f46; }
+    .toast.err { background: #991b1b; }
+
     .hide { display: none !important; }
-    .error { color: #dc2626; font-size: .9rem; }
-    #toast { position: fixed; bottom: 1rem; right: 1rem; background: #111; color: #fff; padding: .6rem 1rem; border-radius: 8px; opacity: 0; transition: opacity .2s; }
-    #toast.show { opacity: 1; }
+    .divider { height: 1px; background: var(--border); margin: 4px 0; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    section.view { padding-bottom: 60px; }
+    .section-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 22px 0 14px; flex-wrap: wrap; }
+    @media (max-width: 640px) {
+      .appbar-inner { height: auto; padding: 10px 0; flex-wrap: wrap; }
+      .nav { order: 3; width: 100%; overflow-x: auto; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>EventHub</h1>
-      <div class="muted" id="whoami">Not signed in</div>
+  <header class="appbar">
+    <div class="container appbar-inner">
+      <div class="brand"><span class="logo">📅</span> EventHub</div>
+      <nav class="nav" id="nav"></nav>
+      <div class="spacer"></div>
+      <div class="user-chip" id="user-chip"></div>
     </div>
-    <div class="row" id="auth-actions"></div>
   </header>
 
-  <section id="auth-panel" class="card">
-    <h3>Sign in / Create account</h3>
-    <div class="grid">
-      <form class="stack" id="login-form">
-        <strong>Login</strong>
-        <input name="email" type="email" placeholder="Email" required />
-        <input name="password" type="password" placeholder="Password" required />
-        <button type="submit">Login</button>
-      </form>
-      <form class="stack" id="register-form">
-        <strong>Register</strong>
-        <input name="name" placeholder="Name" required />
-        <input name="email" type="email" placeholder="Email" required />
-        <input name="password" type="password" placeholder="Password (min 6)" required />
-        <select name="role">
-          <option value="attendee">Attendee</option>
-          <option value="organizer">Organizer</option>
-        </select>
-        <button type="submit">Create account</button>
-      </form>
-    </div>
-    <p class="error" id="auth-error"></p>
-  </section>
+  <main class="container" id="main"></main>
 
-  <section id="organizer-panel" class="card hide">
-    <h3>Create event <span class="tag">(organizers only)</span></h3>
-    <form class="stack" id="event-form">
-      <input name="title" placeholder="Event title" required />
-      <div class="grid">
-        <input name="location" placeholder="Location" />
-        <input name="startsAt" type="datetime-local" required />
-      </div>
-      <div class="grid">
-        <input name="capacity" type="number" min="1" value="50" placeholder="Capacity" />
-      </div>
-      <textarea name="description" placeholder="Description" rows="2"></textarea>
-      <button type="submit">Create event</button>
-    </form>
-  </section>
-
-  <section>
-    <div class="row" style="justify-content: space-between;">
-      <h2>Events</h2>
-      <div class="row">
-        <input id="search" placeholder="Search title or location" />
-        <button class="secondary" id="refresh">Refresh</button>
-      </div>
-    </div>
-    <div id="events"></div>
-  </section>
-
-  <section id="my-registrations" class="hide">
-    <h2>My registrations</h2>
-    <div id="registrations"></div>
-  </section>
-
-  <div id="toast"></div>
+  <div class="toast-wrap" id="toasts"></div>
+  <div id="modal-root"></div>
 
   <script>
-    const state = { token: localStorage.getItem('token') || null, user: null };
-    const $ = (sel) => document.querySelector(sel);
-    const api = async (path, opts = {}) => {
-      const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    /* ---------------- state & helpers ---------------- */
+    const state = {
+      token: localStorage.getItem('eh_token') || null,
+      user: null,
+      view: 'browse',
+      filters: { search: '', category: '', when: 'all', sort: 'date' },
+      regTab: 'upcoming',
+      organizerTab: 'events',
+    };
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtDate = (v) => { const d = new Date(v); return isNaN(d) ? String(v ?? '') : d.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+    const dayParts = (v) => { const d = new Date(v); if (isNaN(d)) return { m: '—', day: '—' }; return { m: d.toLocaleString(undefined, { month: 'short' }), day: d.getDate() }; };
+
+    function toast(msg, type = '') {
+      const t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.textContent = msg;
+      $('#toasts').appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 2600);
+    }
+
+    async function api(path, opts = {}) {
+      const headers = opts.headers || {};
+      if (!(opts.body instanceof FormData) && opts.body) headers['Content-Type'] = 'application/json';
       if (state.token) headers.Authorization = `Bearer ${state.token}`;
       const res = await fetch(path, { ...opts, headers });
       const data = res.status === 204 ? null : await res.json().catch(() => null);
       if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
       return data;
-    };
-    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    function toast(msg) {
-      const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2200);
     }
 
-    function renderAuth() {
-      const signedIn = !!state.token && !!state.user;
-      $('#auth-panel').classList.toggle('hide', signedIn);
-      $('#my-registrations').classList.toggle('hide', !signedIn || state.user.role === 'organizer');
-      $('#organizer-panel').classList.toggle('hide', !signedIn || state.user.role !== 'organizer');
-      $('#whoami').textContent = signedIn ? `${state.user.name} (${state.user.role})` : 'Not signed in';
-      $('#auth-actions').innerHTML = signedIn ? '<button class="secondary" id="logout">Log out</button>' : '';
-      if (signedIn) $('#logout').onclick = logout;
+    /* ---------------- modal ---------------- */
+    function openModal(html, { wide = false } = {}) {
+      const root = $('#modal-root');
+      root.innerHTML = `<div class="overlay"><div class="modal ${wide ? 'wide' : ''}">${html}</div></div>`;
+      const overlay = $('.overlay', root);
+      overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) closeModal(); });
+      $$('.x', root).forEach((b) => b.onclick = closeModal);
+      return root;
     }
+    function closeModal() { $('#modal-root').innerHTML = ''; }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-    async function logout() { state.token = null; state.user = null; localStorage.removeItem('token'); renderAuth(); await loadEvents(); }
+    /* ---------------- auth ---------------- */
+    const initials = (n) => String(n || '?').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
     async function loadMe() {
       if (!state.token) return;
       try { state.user = (await api('/api/auth/me')).user; }
-      catch { state.token = null; localStorage.removeItem('token'); }
+      catch { state.token = null; localStorage.removeItem('eh_token'); }
+    }
+    function logout() {
+      state.token = null; state.user = null; state.view = 'browse';
+      localStorage.removeItem('eh_token');
+      render();
+    }
+
+    function openAuthModal(mode = 'login', role = 'attendee') {
+      const root = openModal(`
+        <div class="modal-head">
+          <div>
+            <h3 id="auth-title">Welcome back</h3>
+            <div class="muted" style="font-size:.9rem" id="auth-sub">Sign in to register for events</div>
+          </div>
+          <button class="x">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="tabs">
+            <button id="tab-login" class="active">Login</button>
+            <button id="tab-register">Create account</button>
+          </div>
+          <form id="auth-form" class="field" style="gap:12px"></form>
+        </div>
+        <div class="modal-foot"><button class="btn ghost" id="auth-cancel">Cancel</button><button class="btn primary" id="auth-submit" form="auth-form">Login</button></div>
+      `);
+      const setMode = (m) => {
+        modalMode = m;
+        $('#tab-login').classList.toggle('active', m === 'login');
+        $('#tab-register').classList.toggle('active', m === 'register');
+        $('#auth-title').textContent = m === 'login' ? 'Welcome back' : 'Create your account';
+        $('#auth-sub').textContent = m === 'login' ? 'Sign in to register for events' : 'Join as an attendee or an organizer';
+        $('#auth-submit').textContent = m === 'login' ? 'Login' : 'Create account';
+        $('#auth-form').innerHTML = m === 'login'
+          ? `<div class="field"><label>Email</label><input name="email" type="email" required placeholder="you@example.com"></div>
+             <div class="field"><label>Password</label><input name="password" type="password" required placeholder="••••••••"></div>`
+          : `<div class="field"><label>Full name</label><input name="name" required placeholder="Jane Doe"></div>
+             <div class="field"><label>Email</label><input name="email" type="email" required placeholder="you@example.com"></div>
+             <div class="field"><label>Password</label><input name="password" type="password" required minlength="6" placeholder="At least 6 characters"></div>
+             <div class="field"><label>I want to</label><select name="role"><option value="attendee">Attend events</option><option value="organizer">Organize events</option></select></div>`;
+      };
+      let modalMode = mode;
+      setMode(mode);
+      $('#tab-login').onclick = () => setMode('login');
+      $('#tab-register').onclick = () => setMode('register');
+      $('#auth-cancel').onclick = closeModal;
+      $('#auth-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = $('#auth-submit');
+        btn.disabled = true;
+        const body = Object.fromEntries(new FormData(e.target));
+        try {
+          const data = await api(modalMode === 'login' ? '/api/auth/login' : '/api/auth/register', { method: 'POST', body: JSON.stringify(body) });
+          state.token = data.token; state.user = data.user; localStorage.setItem('eh_token', data.token);
+          closeModal(); toast(`Welcome, ${data.user.name}!`, 'ok'); render();
+        } catch (err) { toast(err.message, 'err'); btn.disabled = false; }
+      };
+    }
+
+    /* ---------------- render shell ---------------- */
+    function render() {
+      renderNav();
+      renderUserChip();
+      $('#main').innerHTML = '';
+      if (!state.user) { renderBrowse(); return; }
+      if (state.view === 'browse') renderBrowse();
+      else if (state.view === 'mine') renderOrganizer();
+      else if (state.view === 'registrations') renderMyRegistrations();
+    }
+
+    function renderNav() {
+      const items = !state.user ? []
+        : state.user.role === 'organizer'
+          ? [['browse', 'Discover'], ['mine', 'My events']]
+          : [['browse', 'Discover'], ['registrations', 'My registrations']];
+      $('#nav').innerHTML = items.map(([id, label]) => `<button data-view="${id}" class="${state.view === id ? 'active' : ''}">${label}</button>`).join('');
+      $$('#nav [data-view]').forEach((b) => b.onclick = () => { state.view = b.dataset.view; render(); });
+    }
+
+    function renderUserChip() {
+      $('#user-chip').innerHTML = state.user
+        ? `<div class="avatar" title="${esc(state.user.role)}">${esc(initials(state.user.name))}</div>
+           <div style="line-height:1.15"><div style="font-weight:700;font-size:.9rem">${esc(state.user.name)}</div><div class="muted" style="font-size:.78rem;text-transform:capitalize">${esc(state.user.role)}</div></div>
+           <button class="btn ghost sm" id="logout-btn">Log out</button>`
+        : `<button class="btn ghost sm" id="login-btn">Log in</button><button class="btn primary sm" id="signup-btn">Sign up</button>`;
+      if (state.user) $('#logout-btn').onclick = logout;
+      else { $('#login-btn').onclick = () => openAuthModal('login'); $('#signup-btn').onclick = () => openAuthModal('register'); }
+    }
+
+    /* ---------------- browse events ---------------- */
+    function heroHtml(stats) {
+      return `<div class="hero">
+        <h2>Find your next experience</h2>
+        <p>Browse, discover and register for events in seconds. Organizers can create events and manage attendees effortlessly.</p>
+        <div class="stats">
+          <div class="stat"><b>${stats.events}</b><span>Events listed</span></div>
+          <div class="stat"><b>${stats.registrations}</b><span>Registrations</span></div>
+          <div class="stat"><b>${stats.organizers}</b><span>Organizers</span></div>
+        </div>
+      </div>`;
+    }
+
+    async function renderBrowse() {
+      const main = $('#main');
+      main.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+      let events = [];
+      try { events = await loadEvents(); } catch (e) { main.innerHTML = errHtml(e.message); return; }
+      const upcoming = events.filter((e) => !e.isPast).length;
+      const catCount = new Set(events.map((e) => e.category).filter(Boolean)).size;
+      main.innerHTML = `
+        <section class="view">
+          ${heroHtml({ events: events.length, registrations: events.reduce((a, e) => a + e.registeredCount, 0), organizers: new Set(events.map(e => e.organizerId)).size })}
+          <div class="toolbar">
+            <input class="grow" id="f-search" placeholder="Search events by title, place, category…" value="${esc(state.filters.search)}" />
+            <select id="f-category" style="width:auto"><option value="">All categories</option>${categoryOptions(events, state.filters.category)}</select>
+            <div class="seg" id="seg-when">
+              ${['all', 'upcoming', 'past'].map((w) => `<button data-when="${w}" class="${state.filters.when === w ? 'active' : ''}">${w[0].toUpperCase() + w.slice(1)}</button>`).join('')}
+            </div>
+            <select id="f-sort" style="width:auto">
+              <option value="date" ${state.filters.sort === 'date' ? 'selected' : ''}>Soonest first</option>
+              <option value="new" ${state.filters.sort === 'new' ? 'selected' : ''}>Newest</option>
+            </select>
+          </div>
+          <div class="section-title"><h3>${upcoming} upcoming event${upcoming === 1 ? '' : 's'}${catCount ? ` · ${catCount} categories` : ''}</h3></div>
+          <div class="grid" id="events-grid"></div>
+        </section>`;
+      renderEventCards(events);
+      bindBrowse();
+    }
+
+    function categoryOptions(events, current) {
+      const cats = Array.from(new Set(events.map((e) => e.category).filter(Boolean))).sort();
+      return cats.map((c) => `<option value="${esc(c)}" ${current === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
     }
 
     async function loadEvents() {
-      const q = $('#search').value.trim();
-      const rows = await api(`/api/events${q ? `?search=${encodeURIComponent(q)}` : ''}`);
-      const box = $('#events');
-      if (!rows.length) { box.innerHTML = '<p class="muted">No events yet.</p>'; return; }
-      box.innerHTML = rows.map((e) => `
-        <div class="card">
-          <div class="row" style="justify-content: space-between;">
-            <h3>${esc(e.title)}</h3>
-            <span class="pill ${e.spotsLeft === 0 ? 'full' : ''}">${e.spotsLeft === 0 ? 'Full' : e.spotsLeft + ' spots left'}</span>
-          </div>
-          <div class="tag">${esc(e.location || 'No location')} · ${esc(new Date(e.startsAt).toLocaleString())} · by ${esc(e.organizerName)}</div>
-          <p>${esc(e.description || '')}</p>
-          <div class="row">
-            <span class="tag">${e.registeredCount}/${e.capacity} registered</span>
-            ${state.token && state.user && state.user.role === 'attendee'
-              ? `<button data-register="${e.id}" ${e.spotsLeft === 0 ? 'disabled' : ''}>Register</button>` : ''}
-            ${state.token && state.user && (state.user.role === 'organizer' && e.organizerId === state.user.id)
-              ? `<button class="danger" data-delete="${e.id}">Delete</button>` : ''}
-          </div>
-        </div>`).join('');
-
-      box.querySelectorAll('[data-register]').forEach((b) => b.onclick = async () => {
-        try { await api(`/api/events/${b.dataset.register}/register`, { method: 'POST' }); toast('Registered!'); await Promise.all([loadEvents(), loadRegistrations()]); }
-        catch (e) { toast(e.message); }
-      });
-      box.querySelectorAll('[data-delete]').forEach((b) => b.onclick = async () => {
-        if (!confirm('Delete this event?')) return;
-        try { await api(`/api/events/${b.dataset.delete}`, { method: 'DELETE' }); toast('Deleted'); await loadEvents(); }
-        catch (e) { toast(e.message); }
-      });
+      const p = new URLSearchParams();
+      if (state.filters.search) p.set('search', state.filters.search);
+      if (state.filters.category) p.set('category', state.filters.category);
+      if (state.filters.when !== 'all') p.set('when', state.filters.when);
+      const rows = await api('/api/events' + (p.toString() ? '?' + p : ''));
+      return state.filters.sort === 'new' ? rows : rows;
     }
 
-    async function loadRegistrations() {
-      if (!state.token || !state.user || state.user.role === 'organizer') return;
-      const rows = await api('/api/registrations/me');
-      const box = $('#registrations');
-      if (!rows.length) { box.innerHTML = '<p class="muted">No registrations yet.</p>'; return; }
-      box.innerHTML = rows.map((r) => `
-        <div class="card">
-          <div class="row" style="justify-content: space-between;">
-            <h3>${esc(r.event.title)} <span class="pill">${esc(r.status)}</span></h3>
-            ${r.status === 'registered' ? `<button class="danger" data-cancel="${r.id}">Cancel</button>` : ''}
+    function renderEventCards(events) {
+      const grid = $('#events-grid');
+      if (!events.length) { grid.outerHTML = emptyHtml('No events match your filters', 'Try a different search or category.'); return; }
+      let list = events;
+      if (state.filters.sort === 'new') list = [...events].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      grid.innerHTML = list.map((e) => {
+        const pct = Math.min(100, Math.round((e.registeredCount / e.capacity) * 100));
+        const full = e.spotsLeft === 0;
+        const badge = e.isPast ? '<span class="badge gray">Past</span>' : full ? '<span class="badge red">Full</span>' : '<span class="badge green">Open</span>';
+        const regBtn = e.isRegistered
+          ? '<span class="badge purple">✓ Registered</span>'
+          : '';
+        return `<article class="card clickable" data-event="${e.id}">
+          <div class="card-top">
+            <div>
+              ${e.category ? `<span class="badge purple" style="margin-bottom:8px">${esc(e.category)}</span>` : ''}
+              <h3>${esc(e.title)}</h3>
+            </div>
+            ${badge}
           </div>
-          <div class="tag">${esc(r.event.location || 'No location')} · ${esc(new Date(r.event.startsAt).toLocaleString())}</div>
-        </div>`).join('');
-      box.querySelectorAll('[data-cancel]').forEach((b) => b.onclick = async () => {
-        try { await api(`/api/registrations/${b.dataset.cancel}/cancel`, { method: 'POST' }); toast('Cancelled'); await Promise.all([loadEvents(), loadRegistrations()]); }
-        catch (e) { toast(e.message); }
-      });
+          <div class="meta">
+            <span>🗓 ${esc(fmtDate(e.startsAt))}</span>
+            ${e.location ? `<span>📍 ${esc(e.location)}</span>` : ''}
+            <span>👤 ${esc(e.organizerName)}</span>
+          </div>
+          ${e.description ? `<div class="desc">${esc(e.description)}</div>` : ''}
+          <div>
+            <div class="cap ${full ? 'full' : ''}"><i style="width:${pct}%"></i></div>
+            <div class="between" style="margin-top:6px">
+              <span class="muted" style="font-size:.82rem">${e.registeredCount}/${e.capacity} registered</span>
+              <span class="muted" style="font-size:.82rem">${full ? 'No spots left' : e.spotsLeft + ' spots left'}</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn soft sm" data-view-event="${e.id}">View details</button>
+            ${regBtn}
+          </div>
+        </article>`;
+      }).join('');
+      $$('#events-grid .card').forEach((c) => c.onclick = () => openEventDetail(c.dataset.event));
     }
 
-    $('#login-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        const data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
-        state.token = data.token; state.user = data.user; localStorage.setItem('token', data.token);
-        $('#auth-error').textContent = ''; renderAuth(); await afterAuth();
-      } catch (err) { $('#auth-error').textContent = err.message; }
-    };
+    function bindBrowse() {
+      const s = $('#f-search');
+      if (s) { let t; s.oninput = () => { clearTimeout(t); t = setTimeout(() => { state.filters.search = s.value.trim(); renderBrowse(); }, 320); }; }
+      const c = $('#f-category'); if (c) c.onchange = () => { state.filters.category = c.value; renderBrowse(); };
+      const so = $('#f-sort'); if (so) so.onchange = () => { state.filters.sort = so.value; renderBrowse(); };
+      $$('#seg-when button').forEach((b) => b.onclick = () => { state.filters.when = b.dataset.when; renderBrowse(); });
+    }
 
-    $('#register-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        const data = await api('/api/auth/register', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
-        state.token = data.token; state.user = data.user; localStorage.setItem('token', data.token);
-        $('#auth-error').textContent = ''; renderAuth(); await afterAuth();
-      } catch (err) { $('#auth-error').textContent = err.message; }
-    };
+    async function openEventDetail(id) {
+      const root = openModal(`<div class="loading"><div class="spinner"></div></div>`, { wide: true });
+      let e;
+      try { e = await api('/api/events/' + id); } catch (err) { root.innerHTML = ''; toast(err.message, 'err'); return; }
+      const pct = Math.min(100, Math.round((e.registeredCount / e.capacity) * 100));
+      const full = e.spotsLeft === 0;
+      let action = '';
+      if (state.user && state.user.role === 'attendee') {
+        action = e.isRegistered
+          ? `<button class="btn danger" id="cancel-reg">Cancel registration</button>`
+          : `<button class="btn primary" id="do-register" ${full || e.isPast ? 'disabled' : ''}>${full ? 'Event full' : e.isPast ? 'Event ended' : 'Register now'}</button>`;
+      } else if (!state.user) {
+        action = `<button class="btn primary" id="need-auth">Sign in to register</button>`;
+      } else if (state.user.role === 'organizer' && e.organizerId === state.user.id) {
+        action = `<button class="btn danger" id="del-event">Delete event</button>`;
+      }
+      openModal(`
+        <div class="modal-head">
+          <div>
+            ${e.category ? `<span class="badge purple">${esc(e.category)}</span>` : ''}
+            <h3 style="margin-top:8px">${esc(e.title)}</h3>
+            <div class="muted" style="font-size:.88rem">by ${esc(e.organizerName)}</div>
+          </div>
+          <button class="x">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="meta" style="font-size:.92rem">
+            <span>🗓 ${esc(fmtDate(e.startsAt))}</span>
+            ${e.location ? `<span>📍 ${esc(e.location)}</span>` : ''}
+            <span>${e.isPast ? '<span class="badge gray">Past</span>' : `<span class="badge green">${esc(e.spotsLeft)} spots left</span>`}</span>
+          </div>
+          ${e.description ? `<p style="margin:0;color:#3a3f52">${esc(e.description)}</p>` : '<p class="muted" style="margin:0">No description provided.</p>'}
+          <div>
+            <div class="cap ${full ? 'full' : ''}"><i style="width:${pct}%"></i></div>
+            <div class="between" style="margin-top:8px"><span class="muted" style="font-size:.85rem">${e.registeredCount} of ${e.capacity} seats taken</span><span class="muted" style="font-size:.85rem">${pct}%</span></div>
+          </div>
+        </div>
+        <div class="modal-foot">${action}<button class="btn ghost" id="close-detail">Close</button></div>
+      `, { wide: true });
+      $('#close-detail').onclick = closeModal;
+      const dr = $('#do-register');
+      if (dr) dr.onclick = async () => { try { await api(`/api/events/${id}/register`, { method: 'POST' }); toast('You are registered!', 'ok'); closeModal(); render(); } catch (err) { toast(err.message, 'err'); } };
+      const cr = $('#cancel-reg');
+      if (cr) cr.onclick = async () => { try { await api(`/api/registrations/${e.myRegistrationId}/cancel`, { method: 'POST' }); toast('Registration cancelled'); closeModal(); render(); } catch (err) { toast(err.message, 'err'); } };
+      const na = $('#need-auth');
+      if (na) na.onclick = () => { closeModal(); openAuthModal('login'); };
+      const de = $('#del-event');
+      if (de) de.onclick = async () => { if (!confirm('Delete this event permanently?')) return; try { await api(`/api/events/${id}`, { method: 'DELETE' }); toast('Event deleted'); closeModal(); render(); } catch (err) { toast(err.message, 'err'); } };
+    }
 
-    $('#event-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const body = Object.fromEntries(fd);
-      body.capacity = Number(body.capacity);
-      try { await api('/api/events', { method: 'POST', body: JSON.stringify(body) }); e.target.reset(); toast('Event created'); await loadEvents(); }
-      catch (err) { toast(err.message); }
-    };
+    /* ---------------- organizer ---------------- */
+    async function renderOrganizer() {
+      const main = $('#main');
+      main.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+      let stats, events;
+      try { [stats, events] = await Promise.all([api('/api/events/stats'), api('/api/events/mine')]); }
+      catch (e) { main.innerHTML = errHtml(e.message); return; }
+      main.innerHTML = `
+        <section class="view">
+          <div class="section-title">
+            <div><h2>Organizer dashboard</h2><div class="muted">Manage your events and track registrations</div></div>
+            <button class="btn primary" id="new-event">＋ Create event</button>
+          </div>
+          <div class="stat-cards">
+            <div class="stat-card"><div class="k">Total events</div><div class="v">${stats.totalEvents}</div></div>
+            <div class="stat-card"><div class="k">Upcoming</div><div class="v">${stats.upcomingEvents}</div></div>
+            <div class="stat-card"><div class="k">Registrations</div><div class="v">${stats.totalRegistrations}</div></div>
+            <div class="stat-card"><div class="k">Unique attendees</div><div class="v">${stats.uniqueAttendees}</div></div>
+          </div>
+          <div class="tabs"><button id="otab-events" class="active">My events</button><button id="otab-create">Create</button></div>
+          <div id="organizer-body"></div>
+        </section>`;
+      $('#new-event').onclick = () => showCreate();
+      $('#otab-create').onclick = () => showCreate();
+      $('#otab-events').onclick = () => showEvents();
+      const showEvents = () => {
+        $('#otab-events').classList.add('active'); $('#otab-create').classList.remove('active');
+        const box = $('#organizer-body');
+        if (!events.length) { box.innerHTML = emptyHtml('No events yet', 'Create your first event to get started.'); return; }
+        box.innerHTML = `<div class="grid">${events.map((e) => {
+          const pct = Math.min(100, Math.round((e.registeredCount / e.capacity) * 100));
+          return `<article class="card">
+            <div class="card-top">
+              <div>${e.category ? `<span class="badge purple" style="margin-bottom:8px">${esc(e.category)}</span>` : ''}<h3>${esc(e.title)}</h3></div>
+              ${e.isPast ? '<span class="badge gray">Past</span>' : '<span class="badge green">Upcoming</span>'}
+            </div>
+            <div class="meta"><span>🗓 ${esc(fmtDate(e.startsAt))}</span>${e.location ? `<span>📍 ${esc(e.location)}</span>` : ''}</div>
+            <div><div class="cap ${e.spotsLeft === 0 ? 'full' : ''}"><i style="width:${pct}%"></i></div>
+              <div class="between" style="margin-top:6px"><span class="muted" style="font-size:.82rem">${e.registeredCount}/${e.capacity} registered</span><span class="muted" style="font-size:.82rem">${e.spotsLeft} left</span></div></div>
+            <div class="card-actions">
+              <button class="btn soft sm" data-att="${e.id}">View attendees</button>
+              <button class="btn ghost sm" data-edit="${e.id}">Edit</button>
+              <button class="btn danger sm" data-del="${e.id}">Delete</button>
+            </div>
+          </article>`;
+        }).join('')}</div>`;
+        $$('#organizer-body [data-att]', box).forEach((b) => b.onclick = () => openAttendees(b.dataset.att));
+        $$('#organizer-body [data-edit]', box).forEach((b) => b.onclick = () => editEvent(b.dataset.edit, events.find((x) => String(x.id) === b.dataset.edit)));
+        $$('#organizer-body [data-del]', box).forEach((b) => b.onclick = async () => { if (!confirm('Delete this event?')) return; try { await api('/api/events/' + b.dataset.del, { method: 'DELETE' }); toast('Deleted'); renderOrganizer(); } catch (err) { toast(err.message, 'err'); } });
+      };
+      const showCreate = () => {
+        $('#otab-create').classList.add('active'); $('#otab-events').classList.remove('active');
+        $('#organizer-body').innerHTML = eventFormHtml();
+        bindEventForm(async (body) => { await api('/api/events', { method: 'POST', body: JSON.stringify(body) }); toast('Event created', 'ok'); renderOrganizer(); });
+      };
+      showEvents();
+    }
 
-    $('#refresh').onclick = loadEvents;
-    $('#search').oninput = () => { clearTimeout(window._t); window._t = setTimeout(loadEvents, 300); };
+    function eventFormHtml(e = {}) {
+      const dt = e.startsAt ? new Date(e.startsAt) : null;
+      const local = dt && !isNaN(dt) ? new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+      return `<form class="card" style="max-width:640px;gap:14px" id="event-form">
+        <div class="field"><label>Title</label><input name="title" required placeholder="e.g. CodeAlpha Tech Meetup" value="${esc(e.title || '')}"></div>
+        <div class="field"><label>Description</label><textarea name="description" placeholder="What is this event about?">${esc(e.description || '')}</textarea></div>
+        <div class="row" style="gap:14px">
+          <div class="field" style="flex:1;min-width:200px"><label>Location</label><input name="location" placeholder="e.g. Online / Nicosia" value="${esc(e.location || '')}"></div>
+          <div class="field" style="flex:1;min-width:160px"><label>Category</label><input name="category" placeholder="e.g. Technology" value="${esc(e.category || '')}"></div>
+        </div>
+        <div class="row" style="gap:14px">
+          <div class="field" style="flex:1;min-width:200px"><label>Starts at</label><input type="datetime-local" name="startsAt" required value="${local}"></div>
+          <div class="field" style="flex:1;min-width:120px"><label>Capacity</label><input type="number" min="1" name="capacity" value="${esc(e.capacity || 50)}"></div>
+        </div>
+        <div><button class="btn primary" type="submit">${e.id ? 'Save changes' : 'Create event'}</button></div>
+      </form>`;
+    }
 
-    async function afterAuth() { await Promise.all([loadEvents(), loadRegistrations()]); }
+    function bindEventForm(onSubmit) {
+      $('#event-form').onsubmit = async (ev) => {
+        ev.preventDefault();
+        const body = Object.fromEntries(new FormData(ev.target));
+        body.capacity = Number(body.capacity);
+        try { await onSubmit(body); } catch (err) { toast(err.message, 'err'); }
+      };
+    }
 
-    (async function init() {
-      await loadMe();
-      renderAuth();
-      await Promise.all([loadEvents(), loadRegistrations()]);
-    })();
+    function editEvent(id, e) {
+      closeModal();
+      const root = openModal(`<div class="modal-head"><h3>Edit event</h3><button class="x">×</button></div><div class="modal-body">${eventFormHtml(e)}</div>`, { wide: true });
+      bindEventForm(async (body) => { await api('/api/events/' + id, { method: 'PUT', body: JSON.stringify(body) }); toast('Saved', 'ok'); closeModal(); renderOrganizer(); });
+    }
+
+    async function openAttendees(id) {
+      const root = openModal(`<div class="loading"><div class="spinner"></div></div>`, { wide: true });
+      let rows;
+      try { rows = await api(`/api/events/${id}/registrations`); } catch (err) { root.innerHTML = ''; toast(err.message, 'err'); return; }
+      const active = rows.filter((r) => r.status === 'registered');
+      openModal(`
+        <div class="modal-head"><div><h3>Attendees</h3><div class="muted" style="font-size:.88rem">${active.length} registered · ${rows.length - active.length} cancelled</div></div><button class="x">×</button></div>
+        <div class="modal-body">
+          ${rows.length ? rows.map((r) => `<div class="list-row"><div><div style="font-weight:600">${esc(r.user.name)}</div><div class="muted" style="font-size:.82rem">${esc(r.user.email)}</div></div><span class="badge ${r.status === 'registered' ? 'green' : 'gray'}">${esc(r.status)}</span></div>`).join('') : '<div class="empty"><div class="ic">👥</div>No registrations yet</div>'}
+        </div>
+      `, { wide: true });
+    }
+
+    /* ---------------- attendee registrations ---------------- */
+    async function renderMyRegistrations() {
+      const main = $('#main');
+      main.innerHTML = `<div class="loading"><div class="spinner"></div></div>`;
+      let rows;
+      try { rows = await api('/api/registrations/me'); } catch (e) { main.innerHTML = errHtml(e.message); return; }
+      const filtered = rows.filter((r) => state.regTab === 'upcoming' ? !r.event.isPast : r.event.isPast);
+      main.innerHTML = `
+        <section class="view">
+          <div class="section-title"><div><h2>My registrations</h2><div class="muted">Events you've signed up for</div></div></div>
+          <div class="tabs">
+            <button id="rtab-upcoming" class="${state.regTab === 'upcoming' ? 'active' : ''}">Upcoming</button>
+            <button id="rtab-past" class="${state.regTab === 'past' ? 'active' : ''}">Past</button>
+          </div>
+          <div class="grid">${filtered.length ? filtered.map((r) => `
+            <article class="card">
+              <div class="card-top">
+                <div>${r.event.category ? `<span class="badge purple" style="margin-bottom:8px">${esc(r.event.category)}</span>` : ''}<h3>${esc(r.event.title)}</h3></div>
+                <span class="badge ${r.status === 'registered' ? 'green' : 'gray'}">${esc(r.status)}</span>
+              </div>
+              <div class="meta"><span>🗓 ${esc(fmtDate(r.event.startsAt))}</span>${r.event.location ? `<span>📍 ${esc(r.event.location)}</span>` : ''}<span>👤 ${esc(r.event.organizerName)}</span></div>
+              <div class="card-actions">
+                <button class="btn soft sm" data-view-event="${r.event.id}">View details</button>
+                ${r.status === 'registered' && !r.event.isPast ? `<button class="btn danger sm" data-cancel="${r.id}">Cancel</button>` : ''}
+              </div>
+            </article>`).join('') : `<div class="empty" style="grid-column:1/-1"><div class="ic">🎟️</div>No ${state.regTab} registrations</div>`}
+          </div>
+        </section>`;
+      $('#rtab-upcoming').onclick = () => { state.regTab = 'upcoming'; renderMyRegistrations(); };
+      $('#rtab-past').onclick = () => { state.regTab = 'past'; renderMyRegistrations(); };
+      $$('#main [data-view-event]').forEach((b) => b.onclick = () => openEventDetail(b.dataset.viewEvent));
+      $$('#main [data-cancel]').forEach((b) => b.onclick = async () => { if (!confirm('Cancel this registration?')) return; try { await api(`/api/registrations/${b.dataset.cancel}/cancel`, { method: 'POST' }); toast('Cancelled'); renderMyRegistrations(); } catch (err) { toast(err.message, 'err'); } });
+    }
+
+    /* ---------------- shared partials ---------------- */
+    function emptyHtml(title, sub) { return `<div class="empty"><div class="ic">📭</div><h3 style="margin:8px 0 4px">${esc(title)}</h3><div class="muted">${esc(sub)}</div></div>`; }
+    function errHtml(msg) { return `<div class="empty"><div class="ic">⚠️</div><h3 style="margin:8px 0 4px">Something went wrong</h3><div class="muted">${esc(msg)}</div><div style="margin-top:14px"><button class="btn primary" onclick="location.reload()">Reload</button></div></div>`; }
+
+    (async function init() { await loadMe(); render(); })();
   </script>
 </body>
 </html>
